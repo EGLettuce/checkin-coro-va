@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Check-in Coro VA</title>
+<link rel="manifest" href="./manifest.json"/>
+<meta name="theme-color" content="#2D6A4F"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+<meta name="apple-mobile-web-app-title" content="Check-in"/>
+<link rel="apple-touch-icon" href="./icon-192.png"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #F5F3EE;
+    --surface: #FFFFFF;
+    --border: #E2DFDA;
+    --text: #1A1917;
+    --muted: #7A7773;
+    --accent: #2D6A4F;
+    --accent-light: #D8EDDF;
+    --accent-text: #1B4332;
+    --danger: #9B2226;
+    --danger-light: #FFE8E8;
+    --amber-light: #FFF3CD;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 15px; }
+
+  header {
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 14px 20px; display: flex; align-items: center; gap: 12px;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .logo { width: 36px; height: 36px; background: var(--accent); border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .logo svg { width: 20px; height: 20px; fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; }
+  header h1 { font-size: 16px; font-weight: 600; }
+  header p  { font-size: 12px; color: var(--muted); margin-top: 1px; }
+  .header-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  .sync-dot { width: 8px; height: 8px; border-radius: 50%; background: #ccc; transition: background 0.3s; }
+  .sync-dot.ok      { background: #2D6A4F; }
+  .sync-dot.error   { background: #9B2226; }
+  .sync-dot.syncing { background: #CA6702; animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .admin-badge { font-size: 11px; font-weight: 500; padding: 3px 10px; border-radius: 20px; background: #FFF3CD; color: #854F0B; border: 1px solid #F0C674; }
+  .btn-exit { background: none; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 5px 10px; font-size: 12px; color: var(--muted); cursor: pointer; font-family: 'DM Sans', sans-serif; }
+  .btn-exit:hover { background: var(--bg); }
+
+  nav { display: flex; background: var(--surface); border-bottom: 1px solid var(--border); overflow-x: auto; }
+  nav button {
+    flex: 1; min-width: 80px; padding: 12px 8px; border: none; background: none;
+    font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 400;
+    color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap;
+  }
+  nav button.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 500; }
+
+  main { padding: 20px 16px; max-width: 600px; margin: 0 auto; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .section-label { font-size: 11px; font-weight: 500; letter-spacing: 0.8px; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; }
+  .card-title { font-size: 14px; font-weight: 500; margin-bottom: 12px; }
+
+  input[type=text], input[type=password], input[type=number], select {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    font-family: 'DM Sans', sans-serif; font-size: 14px; background: var(--bg); color: var(--text);
+    outline: none; transition: border-color 0.15s; margin-bottom: 8px;
+  }
+  input:focus, select:focus { border-color: var(--accent); }
+
+  .row { display: flex; gap: 8px; align-items: flex-end; }
+  .row > * { flex: 1; }
+  .row > button { flex: 0 0 auto; }
+
+  button.btn {
+    padding: 10px 16px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+    background: var(--surface); font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500;
+    cursor: pointer; color: var(--text); transition: all 0.15s; white-space: nowrap;
+  }
+  button.btn:hover   { background: var(--bg); }
+  button.btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  button.btn.primary:hover { background: var(--accent-text); }
+  button.btn.danger  { color: var(--danger); border-color: var(--danger); }
+  button.btn.danger:hover  { background: var(--danger-light); }
+  button.btn.small   { padding: 6px 12px; font-size: 12px; }
+
+  .list-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+  .list-item:last-child { border-bottom: none; }
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+
+  .qr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+  .qr-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 12px; text-align: center; }
+  .qr-wrap { display: flex; justify-content: center; margin-bottom: 10px; }
+  .qr-name { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+  .qr-sub  { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+
+  .scan-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 16px; }
+  #reader { width: 100% !important; }
+  .scan-actions { display: flex; gap: 8px; flex-wrap: wrap; padding: 16px; }
+
+  .loc-bar { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: var(--radius-sm); font-size: 12px; margin-bottom: 12px; background: var(--bg); border: 1px solid var(--border); }
+  .loc-bar.ok  { background: var(--accent-light); border-color: #A8D5B5; color: var(--accent-text); }
+  .loc-bar.err { background: var(--danger-light);  border-color: #F5ABAB; color: var(--danger); }
+  .loc-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+
+  .overlay { display: none; position: fixed; inset: 0; background: rgba(26,25,23,0.55); z-index: 200; align-items: flex-end; justify-content: center; }
+  .overlay.open { display: flex; }
+  .picker { background: var(--surface); border-radius: var(--radius) var(--radius) 0 0; padding: 24px 20px 36px; width: 100%; max-width: 500px; animation: slideUp 0.22s ease; }
+  @keyframes slideUp { from { transform: translateY(60px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .picker-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+  .picker-header h2 { font-size: 17px; font-weight: 600; }
+  .picker-close { background: none; border: none; font-size: 22px; color: var(--muted); cursor: pointer; line-height: 1; }
+  .picker-sub { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+  .picker-loc { font-size: 11px; color: var(--accent); margin-bottom: 16px; }
+  .activity-btn {
+    display: flex; align-items: center; gap: 12px; width: 100%;
+    padding: 14px 16px; background: var(--bg); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); margin-bottom: 10px;
+    font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500;
+    cursor: pointer; color: var(--text); text-align: left; transition: all 0.15s;
+  }
+  .activity-btn:hover { border-color: var(--accent); background: var(--accent-light); color: var(--accent-text); }
+  .activity-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+  .sending-overlay { display: none; position: fixed; inset: 0; background: rgba(26,25,23,0.45); z-index: 300; align-items: center; justify-content: center; flex-direction: column; gap: 16px; }
+  .sending-overlay.open { display: flex; }
+  .spinner { width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .sending-overlay p { color: #fff; font-size: 14px; font-weight: 500; }
+
+  #pin-screen { display: none; position: fixed; inset: 0; background: rgba(26,25,23,0.6); z-index: 400; align-items: center; justify-content: center; }
+  #pin-screen.open { display: flex; }
+  .pin-box { background: var(--surface); border-radius: var(--radius); padding: 28px 24px; width: 300px; text-align: center; }
+  .pin-box h2 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+  .pin-box p  { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+  .pin-box input { text-align: center; font-size: 22px; letter-spacing: 8px; font-family: 'DM Mono', monospace; margin-bottom: 4px; }
+  .pin-error { font-size: 12px; color: var(--danger); margin-bottom: 12px; min-height: 16px; }
+  .pin-actions { display: flex; gap: 8px; }
+  .pin-actions button { flex: 1; }
+
+  /* install banner */
+  #install-banner {
+    display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: var(--text); color: #fff; border-radius: var(--radius);
+    padding: 14px 18px; font-size: 13px; z-index: 500;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2); max-width: 340px; width: calc(100% - 32px);
+    display: none; align-items: center; gap: 12px;
+  }
+  #install-banner.show { display: flex; }
+  #install-banner p { flex: 1; line-height: 1.4; }
+  #install-banner strong { display: block; margin-bottom: 2px; }
+  #install-banner .ib-actions { display: flex; gap: 8px; flex-shrink: 0; flex-direction: column; }
+  #install-banner button { padding: 7px 14px; border-radius: var(--radius-sm); border: none; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500; cursor: pointer; white-space: nowrap; }
+  .ib-install { background: #fff; color: var(--text); }
+  .ib-dismiss { background: rgba(255,255,255,0.15); color: #fff; }
+
+  #user-mode { display: none; }
+  #user-mode.visible { display: block; }
+  .user-scan-wrap { max-width: 480px; margin: 0 auto; padding: 20px 16px; }
+  .user-header { text-align: center; margin-bottom: 24px; }
+  .user-header h2 { font-size: 20px; font-weight: 600; margin-bottom: 6px; }
+  .user-header p  { font-size: 14px; color: var(--muted); }
+  .user-scan-box  { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 16px; }
+  #user-reader { width: 100% !important; }
+  .user-scan-actions { display: flex; gap: 8px; flex-wrap: wrap; padding: 16px; justify-content: center; }
+  .user-result { padding: 16px; border-radius: var(--radius-sm); font-size: 14px; margin-bottom: 16px; display: none; line-height: 1.6; text-align: center; }
+  .user-result.success { background: var(--accent-light); color: var(--accent-text); }
+  .user-result.error   { background: var(--danger-light);  color: var(--danger); }
+  .admin-link { text-align: center; margin-top: 32px; }
+  .admin-link button { background: none; border: none; font-size: 12px; color: var(--muted); cursor: pointer; font-family: 'DM Sans', sans-serif; text-decoration: underline; }
+
+  .result-box { padding: 14px 16px; border-radius: var(--radius-sm); font-size: 14px; margin-bottom: 16px; display: none; line-height: 1.6; }
+  .result-box.success { background: var(--accent-light); color: var(--accent-text); }
+  .result-box.error   { background: var(--danger-light);  color: var(--danger); }
+
+  .records-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 10px 12px; color: var(--muted); font-weight: 500; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--text); white-space: nowrap; }
+  tr:last-child td { border-bottom: none; }
+  a.map-link { color: #1D5F8A; font-size: 12px; text-decoration: none; }
+  a.map-link:hover { text-decoration: underline; }
+  .empty { text-align: center; padding: 40px 20px; color: var(--muted); font-size: 14px; line-height: 1.7; }
+  .empty strong { color: var(--text); display: block; margin-bottom: 4px; }
+  .hint { font-size: 12px; color: #7A5C00; background: var(--amber-light); border: 1px solid #F0C674; border-radius: var(--radius-sm); padding: 10px 14px; margin-bottom: 16px; line-height: 1.5; }
+  .sheets-banner { display: flex; align-items: center; gap: 10px; background: var(--accent-light); border: 1px solid #A8D5B5; border-radius: var(--radius-sm); padding: 10px 14px; margin-bottom: 16px; font-size: 12px; color: var(--accent-text); line-height: 1.5; }
+
+  @media print {
+    header, nav, .no-print { display: none !important; }
+    .qr-card { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══ ADMIN UI ══ -->
+<div id="admin-mode">
+  <header>
+    <div class="logo">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="16" width="3" height="5"/><rect x="19" y="14" width="2" height="2"/><rect x="17" y="19" width="4" height="2"/></svg>
+    </div>
+    <div>
+      <h1>Check-in Coro VA</h1>
+      <p>Panel de administración</p>
+    </div>
+    <div class="header-right">
+      <span class="admin-badge">Admin</span>
+      <div id="sync-dot" class="sync-dot"></div>
+      <button class="btn-exit" onclick="exitAdmin()">Salir</button>
+    </div>
+  </header>
+  <nav>
+    <button class="active" onclick="showPanel('qr',this)">Códigos QR</button>
+    <button onclick="showPanel('scan',this)">Escanear</button>
+    <button onclick="showPanel('records',this)">Registros</button>
+    <button onclick="showPanel('config',this)">Configurar</button>
+  </nav>
+  <main>
+    <div id="panel-qr" class="panel active">
+      <p class="section-label">Un QR por integrante</p>
+      <div class="hint no-print">Imprime y entrega el QR físico a cada integrante.</div>
+      <div id="qr-grid" class="qr-grid"></div>
+    </div>
+    <div id="panel-scan" class="panel">
+      <p class="section-label">Escanear QR</p>
+      <div id="result-box" class="result-box"></div>
+      <div id="loc-bar" class="loc-bar no-print"><span class="loc-dot"></span><span id="loc-text">Obteniendo ubicación...</span></div>
+      <div class="scan-box"><div id="reader"></div>
+        <div class="scan-actions no-print">
+          <button class="btn primary" id="btn-start" onclick="startScan()">Activar cámara</button>
+          <button class="btn" id="btn-stop" onclick="stopScan()" style="display:none;">Detener cámara</button>
+        </div>
+      </div>
+      <div class="card no-print">
+        <p class="card-title">Registro manual</p>
+        <select id="m-member" style="margin-bottom:12px;"></select>
+        <button class="btn primary" onclick="openPickerForMember()">Seleccionar actividad</button>
+      </div>
+    </div>
+    <div id="panel-records" class="panel">
+      <div class="records-header">
+        <p class="section-label" style="margin:0;">Historial local</p>
+        <div style="display:flex;gap:8px;" class="no-print">
+          <button class="btn small" onclick="exportCSV()">Exportar CSV</button>
+          <button class="btn small danger" onclick="clearRecords()">Limpiar</button>
+        </div>
+      </div>
+      <div class="sheets-banner no-print">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2D6A4F" stroke-width="2" style="flex-shrink:0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>
+        <span>Los registros también se guardan en tu <strong>Google Sheets</strong> en tiempo real.</span>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden;"><div class="table-wrap" id="records-wrap"></div></div>
+    </div>
+    <div id="panel-config" class="panel">
+      <p class="section-label">Integrantes</p>
+      <div class="card">
+        <div class="row">
+          <input type="text" id="inp-member" placeholder="Nombre completo" />
+          <button class="btn primary" onclick="addMember()">Agregar</button>
+        </div>
+        <div id="members-list"></div>
+      </div>
+      <p class="section-label">Actividades (máx. 5)</p>
+      <div class="card">
+        <div class="row">
+          <div style="flex:2;"><input type="text" id="inp-activity" placeholder="Ej: Ensayo general" /></div>
+          <div style="flex:1;">
+            <select id="inp-color">
+              <option value="teal">Verde</option>
+              <option value="blue">Azul</option>
+              <option value="purple">Morado</option>
+              <option value="amber">Naranja</option>
+              <option value="coral">Rojo</option>
+            </select>
+          </div>
+          <button class="btn primary" onclick="addActivity()">Agregar</button>
+        </div>
+        <div id="activities-list"></div>
+      </div>
+      <p class="section-label">PIN de administrador</p>
+      <div class="card">
+        <p style="font-size:13px;color:var(--muted);margin-bottom:10px;">PIN actual protege este panel. Por defecto: <strong>1234</strong>.</p>
+        <div class="row">
+          <input type="number" id="new-pin" placeholder="Nuevo PIN (4 dígitos)" max="9999" min="1000" />
+          <button class="btn primary" onclick="savePin()">Guardar</button>
+        </div>
+        <p id="pin-msg" style="font-size:12px;color:var(--muted);margin-top:4px;"></p>
+      </div>
+      <p class="section-label">Conexión con Google Sheets</p>
+      <div class="card">
+        <p style="font-size:13px;color:var(--muted);margin-bottom:10px;">URL del script de Google Apps Script</p>
+        <input type="text" id="sheets-url" style="font-size:12px;" />
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn primary" onclick="saveSheetUrl()">Guardar URL</button>
+          <button class="btn" onclick="testConnection()">Probar conexión</button>
+        </div>
+        <p id="url-status" style="font-size:12px;margin-top:8px;color:var(--muted);"></p>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ══ USER MODE ══ -->
+<div id="user-mode">
+  <div class="user-scan-wrap">
+    <div class="user-header">
+      <div class="logo" style="margin:0 auto 16px;width:48px;height:48px;">
+        <svg viewBox="0 0 24 24" style="width:24px;height:24px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="16" width="3" height="5"/><rect x="19" y="14" width="2" height="2"/><rect x="17" y="19" width="4" height="2"/></svg>
+      </div>
+      <h2>Check-in Coro VA</h2>
+      <p>Escanea tu código QR personal</p>
+    </div>
+    <div id="user-loc-bar" class="loc-bar"><span class="loc-dot"></span><span id="user-loc-text">Obteniendo ubicación...</span></div>
+    <div id="user-result" class="user-result"></div>
+    <div class="user-scan-box">
+      <div id="user-reader"></div>
+      <div class="user-scan-actions">
+        <button class="btn primary" id="user-btn-start" onclick="userStartScan()">Activar cámara</button>
+        <button class="btn" id="user-btn-stop" onclick="userStopScan()" style="display:none;">Detener cámara</button>
+      </div>
+    </div>
+    <div class="admin-link"><button onclick="openPinScreen()">Acceso administrador</button></div>
+  </div>
+</div>
+
+<!-- Install banner -->
+<div id="install-banner">
+  <p><strong>Instalar Check-in Coro VA</strong>Agrégala a tu pantalla de inicio</p>
+  <div class="ib-actions">
+    <button class="ib-install" onclick="installApp()">Instalar</button>
+    <button class="ib-dismiss" onclick="dismissInstall()">Ahora no</button>
+  </div>
+</div>
+
+<!-- Activity Picker -->
+<div class="overlay" id="overlay">
+  <div class="picker">
+    <div class="picker-header">
+      <h2 id="picker-title">Selecciona actividad</h2>
+      <button class="picker-close" onclick="closeOverlay()">✕</button>
+    </div>
+    <p class="picker-sub">¿Qué actividad estás realizando ahora?</p>
+    <p class="picker-loc" id="picker-loc"></p>
+    <div id="activity-buttons"></div>
+  </div>
+</div>
+
+<div class="sending-overlay" id="sending-overlay">
+  <div class="spinner"></div>
+  <p>Guardando registro...</p>
+</div>
+
+<div id="pin-screen">
+  <div class="pin-box">
+    <h2>Acceso administrador</h2>
+    <p>Ingresa el PIN para continuar</p>
+    <input type="password" id="pin-input" maxlength="4" placeholder="• • • •" oninput="clearPinError()" onkeydown="if(event.key==='Enter') checkPin()" />
+    <p class="pin-error" id="pin-error"></p>
+    <div class="pin-actions">
+      <button class="btn" onclick="closePinScreen()">Cancelar</button>
+      <button class="btn primary" onclick="checkPin()">Entrar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SHEETS_URL_KEY = 'eq_sheets_url';
+const PIN_KEY        = 'eq_admin_pin';
+const colorDefs = {
+  teal:   { bg: '#D8EDDF', text: '#1B4332', dot: '#2D6A4F' },
+  blue:   { bg: '#E0F0FA', text: '#1D5F8A', dot: '#1D5F8A' },
+  purple: { bg: '#EDE7F6', text: '#5E3A8C', dot: '#5E3A8C' },
+  amber:  { bg: '#FFF3CD', text: '#CA6702', dot: '#CA6702' },
+  coral:  { bg: '#FDECEA', text: '#AE3A21', dot: '#AE3A21' }
+};
+
+let members    = JSON.parse(localStorage.getItem('eq_members')    || '[]');
+let activities = JSON.parse(localStorage.getItem('eq_activities') || '[]');
+let records    = JSON.parse(localStorage.getItem('eq_records')    || '[]');
+let sheetsUrl  = localStorage.getItem(SHEETS_URL_KEY) || 'https://script.google.com/macros/s/AKfycbx4SS2whGlYXaz2mBw6gW6jrrJPfKR2ySguX4mOCIfDDsi2iXrEXX68L_IuBlH8Evw14g/exec';
+let adminPin   = localStorage.getItem(PIN_KEY) || '1234';
+let scanner    = null, userScanner = null;
+let pendingMember = null, scanSource = 'user';
+let cachedLocation = { lat: null, lng: null };
+let deferredPrompt = null;
+
+function persist() {
+  localStorage.setItem('eq_members',    JSON.stringify(members));
+  localStorage.setItem('eq_activities', JSON.stringify(activities));
+  localStorage.setItem('eq_records',    JSON.stringify(records));
+}
+
+/* ── PWA INSTALL ── */
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById('install-banner').classList.add('show');
+});
+function installApp() {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  deferredPrompt.userChoice.then(() => { deferredPrompt = null; dismissInstall(); });
+}
+function dismissInstall() {
+  document.getElementById('install-banner').classList.remove('show');
+}
+window.addEventListener('appinstalled', () => dismissInstall());
+
+/* ── SERVICE WORKER ── */
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
+
+/* ── MODES ── */
+function enterUserMode() {
+  document.getElementById('admin-mode').style.display = 'none';
+  document.getElementById('user-mode').classList.add('visible');
+  startLocationWatcher('user');
+}
+function enterAdminMode() {
+  document.getElementById('user-mode').classList.remove('visible');
+  document.getElementById('admin-mode').style.display = 'block';
+  renderConfig(); renderScanSelects(); renderQR();
+  if (sheetsUrl) setSyncDot('ok');
+  startLocationWatcher('admin');
+  document.getElementById('sheets-url').value = sheetsUrl;
+}
+function exitAdmin() {
+  if (scanner)     { scanner.stop().catch(()=>{}); scanner = null; }
+  enterUserMode();
+}
+
+/* ── PIN ── */
+function openPinScreen() {
+  document.getElementById('pin-input').value = '';
+  document.getElementById('pin-error').textContent = '';
+  document.getElementById('pin-screen').classList.add('open');
+  setTimeout(() => document.getElementById('pin-input').focus(), 100);
+}
+function closePinScreen() { document.getElementById('pin-screen').classList.remove('open'); }
+function clearPinError()  { document.getElementById('pin-error').textContent = ''; }
+function checkPin() {
+  const val = document.getElementById('pin-input').value.trim();
+  if (val === adminPin) { closePinScreen(); enterAdminMode(); }
+  else { document.getElementById('pin-error').textContent = 'PIN incorrecto.'; document.getElementById('pin-input').value = ''; }
+}
+function savePin() {
+  const v = document.getElementById('new-pin').value.trim();
+  const msg = document.getElementById('pin-msg');
+  if (v.length !== 4 || isNaN(v)) { msg.textContent = 'El PIN debe tener exactamente 4 dígitos.'; msg.style.color = 'var(--danger)'; return; }
+  adminPin = v; localStorage.setItem(PIN_KEY, v);
+  msg.textContent = '✓ PIN actualizado.'; msg.style.color = 'var(--accent)';
+  document.getElementById('new-pin').value = '';
+}
+
+/* ── LOCATION ── */
+function startLocationWatcher(ctx) {
+  if (!navigator.geolocation) { updateLocBar(ctx, false, 'Geolocalización no disponible'); return; }
+  navigator.geolocation.watchPosition(
+    pos => {
+      cachedLocation = { lat: pos.coords.latitude.toFixed(5), lng: pos.coords.longitude.toFixed(5) };
+      updateLocBar(ctx, true, 'Ubicación lista: ' + cachedLocation.lat + ', ' + cachedLocation.lng);
+    },
+    err => {
+      cachedLocation = { lat: null, lng: null };
+      const msgs = { 1: 'Permiso de ubicación denegado', 2: 'Ubicación no disponible', 3: 'Tiempo agotado' };
+      updateLocBar(ctx, false, msgs[err.code] || 'Error de ubicación');
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 15000 }
+  );
+}
+function updateLocBar(ctx, ok, msg) {
+  const bar  = document.getElementById(ctx === 'user' ? 'user-loc-bar'  : 'loc-bar');
+  const text = document.getElementById(ctx === 'user' ? 'user-loc-text' : 'loc-text');
+  if (!bar) return;
+  bar.className = (ctx === 'user' ? 'loc-bar' : 'loc-bar no-print') + (ok ? ' ok' : ' err');
+  text.textContent = msg;
+}
+function setSyncDot(state) { const d = document.getElementById('sync-dot'); if (d) d.className = 'sync-dot ' + state; }
+
+/* ── ADMIN PANEL ── */
+function showPanel(name, btn) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  if (btn) btn.classList.add('active');
+  if (name === 'qr')      renderQR();
+  if (name === 'records') renderRecords();
+  if (name === 'config')  { renderConfig(); document.getElementById('sheets-url').value = sheetsUrl; }
+  if (name === 'scan')    renderScanSelects();
+}
+function addMember() {
+  const v = document.getElementById('inp-member').value.trim(); if (!v) return;
+  members.push({ id: Date.now(), name: v }); document.getElementById('inp-member').value = '';
+  persist(); renderConfig(); renderQR(); renderScanSelects();
+}
+function removeMember(id) { members = members.filter(m => m.id !== id); persist(); renderConfig(); renderQR(); }
+function addActivity() {
+  if (activities.length >= 5) { alert('Máximo 5 actividades.'); return; }
+  const v = document.getElementById('inp-activity').value.trim();
+  const c = document.getElementById('inp-color').value; if (!v) return;
+  activities.push({ id: Date.now(), name: v, color: c }); document.getElementById('inp-activity').value = '';
+  persist(); renderConfig();
+}
+function removeActivity(id) { activities = activities.filter(a => a.id !== id); persist(); renderConfig(); }
+function renderConfig() {
+  document.getElementById('members-list').innerHTML = members.length
+    ? members.map(m => `<div class="list-item"><span>${m.name}</span><button class="btn small danger" onclick="removeMember(${m.id})">Quitar</button></div>`).join('')
+    : '<p class="empty"><strong>Sin integrantes</strong>Agrega los nombres de tu equipo.</p>';
+  document.getElementById('activities-list').innerHTML = activities.length
+    ? activities.map(a => { const c = colorDefs[a.color]; return `<div class="list-item"><span>${a.name}&nbsp;<span class="badge" style="background:${c.bg};color:${c.text};">${a.color}</span></span><button class="btn small danger" onclick="removeActivity(${a.id})">Quitar</button></div>`; }).join('')
+    : '<p class="empty"><strong>Sin actividades</strong>Agrega al menos una actividad.</p>';
+}
+function saveSheetUrl() {
+  const v = document.getElementById('sheets-url').value.trim(); if (!v) return;
+  sheetsUrl = v; localStorage.setItem(SHEETS_URL_KEY, v);
+  const st = document.getElementById('url-status'); st.textContent = '✓ URL guardada.'; st.style.color = 'var(--accent)';
+}
+async function testConnection() {
+  const st = document.getElementById('url-status'); st.textContent = 'Probando...'; st.style.color = 'var(--muted)';
+  try {
+    const r = await fetch(sheetsUrl); const d = await r.json();
+    if (d.status === 'online') { st.textContent = '✓ Conexión exitosa.'; st.style.color = 'var(--accent)'; setSyncDot('ok'); } else throw new Error();
+  } catch(e) { st.textContent = '✗ No se pudo conectar.'; st.style.color = 'var(--danger)'; setSyncDot('error'); }
+}
+
+/* ── QR ── */
+function renderQR() {
+  const grid = document.getElementById('qr-grid');
+  if (!members.length) { grid.innerHTML = '<p class="empty" style="grid-column:1/-1;"><strong>Faltan integrantes</strong>Ve a Configurar.</p>'; return; }
+  grid.innerHTML = '';
+  members.forEach(member => {
+    const elId = 'qr_' + member.id;
+    const card = document.createElement('div'); card.className = 'qr-card';
+    card.innerHTML = `<div class="qr-wrap"><div id="${elId}"></div></div><p class="qr-name">${member.name}</p><p class="qr-sub">Escanear para registrar</p><button class="btn small no-print" onclick="printCard('${elId}','${member.name}')">Imprimir</button>`;
+    grid.appendChild(card);
+    new QRCode(document.getElementById(elId), { text: JSON.stringify({ memberId: member.id, memberName: member.name }), width: 130, height: 130, colorDark: '#1A1917', colorLight: '#FFFFFF', correctLevel: QRCode.CorrectLevel.M });
+  });
+}
+function printCard(containerId, memberName) {
+  const canvas = document.getElementById(containerId).querySelector('canvas'); if (!canvas) return;
+  const w = window.open('', '_blank');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:sans-serif;text-align:center;padding:40px;background:#fff;color:#1A1917;}h2{font-size:22px;margin-bottom:8px;}p{font-size:14px;color:#7A7773;margin-bottom:20px;}img{width:220px;height:220px;display:block;margin:0 auto 20px;}button{padding:10px 24px;font-size:14px;cursor:pointer;background:#2D6A4F;color:#fff;border:none;border-radius:8px;}@media print{button{display:none;}}</style></head><body><h2>${memberName}</h2><p>Escanea para registrar tu asistencia</p><img src="${canvas.toDataURL('image/png')}"/><br/><button onclick="window.print()">Imprimir</button></body></html>`);
+  w.document.close();
+}
+
+/* ── PICKER ── */
+function openPicker(memberObj, source) {
+  if (!activities.length) { alert('No hay actividades configuradas.'); return; }
+  pendingMember = memberObj; scanSource = source || 'user';
+  document.getElementById('picker-title').textContent = memberObj.memberName;
+  document.getElementById('picker-loc').textContent   = cachedLocation.lat ? '📍 ' + cachedLocation.lat + ', ' + cachedLocation.lng : '📍 Ubicación no disponible';
+  document.getElementById('activity-buttons').innerHTML = activities.map(a => { const c = colorDefs[a.color]; return `<button class="activity-btn" onclick="confirmActivity(${a.id})"><span class="activity-dot" style="background:${c.dot};"></span><span>${a.name}</span></button>`; }).join('');
+  document.getElementById('overlay').classList.add('open');
+}
+function closeOverlay() { document.getElementById('overlay').classList.remove('open'); pendingMember = null; }
+
+async function confirmActivity(activityId) {
+  const act = activities.find(a => a.id === activityId);
+  const member = pendingMember;
+  const loc    = { lat: cachedLocation.lat, lng: cachedLocation.lng };
+  const source = scanSource;
+  closeOverlay(); if (!act || !member) return;
+  document.getElementById('sending-overlay').classList.add('open'); setSyncDot('syncing');
+  const now = new Date();
+  const record = { id: Date.now(), memberId: member.memberId, activityId: act.id, memberName: member.memberName, activityName: act.name, date: now.toLocaleDateString('es-MX'), time: now.toLocaleTimeString('es-MX'), lat: loc.lat, lng: loc.lng };
+  let sheetOk = false;
+  try {
+    const resp = await fetch(sheetsUrl, { method: 'POST', body: JSON.stringify({ memberName: record.memberName, activityName: record.activityName, date: record.date, time: record.time, lat: record.lat||'', lng: record.lng||'' }) });
+    sheetOk = (await resp.json()).status === 'ok';
+  } catch(e) {}
+  records.unshift(record); persist();
+  document.getElementById('sending-overlay').classList.remove('open');
+  const locStr   = record.lat ? `<br><span style="font-size:12px;">📍 ${record.lat}, ${record.lng}</span>` : '';
+  const sheetStr = sheetOk ? `<br><span style="font-size:12px;opacity:0.8;">✓ Guardado en Google Sheets</span>` : `<br><span style="font-size:12px;">⚠ Sin conexión. Guardado localmente.</span>`;
+  if (source === 'user') {
+    setSyncDot('');
+    const box = document.getElementById('user-result');
+    box.style.display = 'block'; box.className = 'user-result ' + (sheetOk ? 'success' : 'error');
+    box.innerHTML = `<strong>¡Listo, ${record.memberName}!</strong><br>${record.activityName} · ${record.time}${locStr}${sheetStr}`;
+    setTimeout(() => { box.style.display = 'none'; }, 6000);
+  } else {
+    setSyncDot(sheetOk ? 'ok' : 'error');
+    const box = document.getElementById('result-box');
+    box.style.display = 'block'; box.className = 'result-box ' + (sheetOk ? 'success' : 'error');
+    box.innerHTML = `<strong>¡Registrado!</strong> ${record.memberName} — ${record.activityName} · ${record.time}${locStr}${sheetStr}`;
+  }
+  pendingMember = null;
+}
+
+/* ── SCANS ── */
+function renderScanSelects() {
+  const ms = document.getElementById('m-member'); if (!ms) return;
+  ms.innerHTML = members.length ? members.map(m => `<option value="${m.id}">${m.name}</option>`).join('') : '<option>Sin integrantes</option>';
+}
+function openPickerForMember() {
+  if (!members.length) { alert('Agrega integrantes primero.'); return; }
+  const ms = document.getElementById('m-member');
+  const member = members.find(m => m.id === parseInt(ms.value)); if (!member) return;
+  openPicker({ memberId: member.id, memberName: member.name }, 'admin');
+}
+function startScan() {
+  document.getElementById('btn-start').style.display = 'none'; document.getElementById('btn-stop').style.display = 'inline-block';
+  document.getElementById('result-box').style.display = 'none';
+  scanner = new Html5Qrcode('reader');
+  scanner.start({ facingMode: 'environment' }, { fps: 10, qrbox: { width: 260, height: 260 } },
+    (text) => { try { const d = JSON.parse(text); if (!d.memberId) throw new Error(); stopScan(); openPicker(d, 'admin'); } catch(e) { const b = document.getElementById('result-box'); b.style.display='block'; b.className='result-box error'; b.innerHTML='QR no reconocido.'; } }, () => {}
+  );
+}
+function stopScan() {
+  if (scanner) { scanner.stop().catch(()=>{}); scanner = null; }
+  document.getElementById('btn-start').style.display = 'inline-block'; document.getElementById('btn-stop').style.display = 'none';
+}
+function userStartScan() {
+  document.getElementById('user-btn-start').style.display = 'none'; document.getElementById('user-btn-stop').style.display = 'inline-block';
+  document.getElementById('user-result').style.display = 'none';
+  userScanner = new Html5Qrcode('user-reader');
+  userScanner.start({ facingMode: 'environment' }, { fps: 10, qrbox: { width: 260, height: 260 } },
+    (text) => { try { const d = JSON.parse(text); if (!d.memberId) throw new Error(); userStopScan(); openPicker(d, 'user'); } catch(e) { const b = document.getElementById('user-result'); b.style.display='block'; b.className='user-result error'; b.innerHTML='QR no reconocido. Usa el código que te entregó tu líder.'; } }, () => {}
+  );
+}
+function userStopScan() {
+  if (userScanner) { userScanner.stop().catch(()=>{}); userScanner = null; }
+  document.getElementById('user-btn-start').style.display = 'inline-block'; document.getElementById('user-btn-stop').style.display = 'none';
+}
+
+/* ── RECORDS ── */
+function renderRecords() {
+  const wrap = document.getElementById('records-wrap');
+  if (!records.length) { wrap.innerHTML = '<p class="empty"><strong>Sin registros</strong>Los escaneos aparecerán aquí.</p>'; return; }
+  wrap.innerHTML = `<table><thead><tr><th>Integrante</th><th>Actividad</th><th>Fecha</th><th>Hora</th><th>Ubicación</th></tr></thead><tbody>${records.map(r => { const act = activities.find(a => a.id === r.activityId); const c = act ? colorDefs[act.color] : { bg: '#eee', text: '#555' }; const loc = r.lat ? `<a class="map-link" href="https://maps.google.com/?q=${r.lat},${r.lng}" target="_blank">Ver mapa</a>` : '<span style="color:var(--muted)">—</span>'; return `<tr><td>${r.memberName}</td><td><span class="badge" style="background:${c.bg};color:${c.text};">${r.activityName}</span></td><td>${r.date}</td><td style="font-family:'DM Mono',monospace;">${r.time}</td><td>${loc}</td></tr>`; }).join('')}</tbody></table>`;
+}
+function exportCSV() {
+  if (!records.length) { alert('No hay registros.'); return; }
+  const blob = new Blob([['Integrante,Actividad,Fecha,Hora,Latitud,Longitud', ...records.map(r => `"${r.memberName}","${r.activityName}","${r.date}","${r.time}","${r.lat||''}","${r.lng||''}"`)].join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'registros_checkin_coro_va.csv'; a.click();
+}
+function clearRecords() {
+  if (!confirm('¿Eliminar historial local? Los datos en Google Sheets no se borran.')) return;
+  records = []; persist(); renderRecords();
+}
+
+/* ── INIT ── */
+enterUserMode();
+</script>
+</body>
+</html>
