@@ -395,12 +395,23 @@ function enterUserMode() {
   document.getElementById('user-mode').classList.add('visible');
   startLocationWatcher('user');
 }
-function enterAdminMode() {
+async function enterAdminMode() {
   document.getElementById('user-mode').classList.remove('visible');
   document.getElementById('admin-mode').style.display = 'block';
   document.getElementById('sheets-url').value = sheetsUrl;
+  if (sheetsUrl) {
+    setSyncDot('syncing');
+    try {
+      const r = await fetch(sheetsUrl + '?action=getConfig&t=' + Date.now());
+      const d = await r.json();
+      if (d.status === 'ok') {
+        members    = d.members    || [];
+        activities = d.activities || [];
+      }
+      setSyncDot('ok');
+    } catch(e) { setSyncDot('error'); }
+  }
   renderConfig(); renderScanSelects(); renderQR();
-  if (sheetsUrl) setSyncDot('ok');
   startLocationWatcher('admin');
 }
 function exitAdmin() {
