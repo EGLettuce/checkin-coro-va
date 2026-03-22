@@ -336,7 +336,7 @@ const colorDefs = {
 let members    = [];
 let activities = [];
 let records    = JSON.parse(localStorage.getItem('eq_records') || '[]');
-let sheetsUrl  = localStorage.getItem(SHEETS_URL_KEY) || 'https://script.google.com/macros/s/AKfycbx4SS2whGlYXaz2mBw6gW6jrrJPfKR2ySguX4mOCIfDDsi2iXrEXX68L_IuBlH8Evw14g/exec';
+let sheetsUrl  = localStorage.getItem(SHEETS_URL_KEY) || '';
 let adminPin   = localStorage.getItem(PIN_KEY) || '1234';
 let scanner = null, userScanner = null;
 let pendingMember = null, scanSource = 'user';
@@ -350,20 +350,16 @@ async function loadConfig() {
   document.getElementById('loading-msg').textContent = 'Cargando configuración...';
   if (!sheetsUrl) { hideLoading(); return; }
   try {
-    const r = await fetch(sheetsUrl, {
-      method: 'POST',
-      body: JSON.stringify({ action: 'getConfig' })
-    });
+    const r = await fetch(sheetsUrl + '?action=getConfig&t=' + Date.now());
     const d = await r.json();
     if (d.status === 'ok') {
       members    = d.members    || [];
       activities = d.activities || [];
     }
   } catch(e) {}
-  localStorage.setItem(SHEETS_URL_KEY, sheetsUrl);
   hideLoading();
 }
-  
+ 
 async function saveConfig() {
   if (!sheetsUrl) return;
   try {
@@ -378,7 +374,7 @@ function hideLoading() {
   document.getElementById('loading-screen').style.display = 'none';
   enterUserMode();
 }
-  
+ 
 /* ── PWA ── */
 window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault(); deferredPrompt = e;
@@ -399,26 +395,12 @@ function enterUserMode() {
   document.getElementById('user-mode').classList.add('visible');
   startLocationWatcher('user');
 }
-async function enterAdminMode() {
+function enterAdminMode() {
   document.getElementById('user-mode').classList.remove('visible');
   document.getElementById('admin-mode').style.display = 'block';
   document.getElementById('sheets-url').value = sheetsUrl;
-  if (sheetsUrl) {
-    setSyncDot('syncing');
-    try {
-      const r = await fetch(sheetsUrl, {
-        method: 'POST',
-        body: JSON.stringify({ action: 'getConfig' })
-      });
-      const d = await r.json();
-      if (d.status === 'ok') {
-        members    = d.members    || [];
-        activities = d.activities || [];
-      }
-      setSyncDot('ok');
-    } catch(e) { setSyncDot('error'); }
-  }
   renderConfig(); renderScanSelects(); renderQR();
+  if (sheetsUrl) setSyncDot('ok');
   startLocationWatcher('admin');
 }
 function exitAdmin() {
