@@ -451,13 +451,14 @@ function checkPin() {
   if (val === adminPin) { closePinScreen(); enterAdminMode(); }
   else { document.getElementById('pin-error').textContent = 'PIN incorrecto.'; document.getElementById('pin-input').value = ''; }
 }
-function savePin() {
+async function savePin() {
   const v = document.getElementById('new-pin').value.trim();
   const msg = document.getElementById('pin-msg');
   if (v.length !== 4 || isNaN(v)) { msg.textContent = 'Debe tener 4 dígitos.'; msg.style.color = 'var(--danger)'; return; }
   adminPin = v; localStorage.setItem(PIN_KEY, v);
-  saveConfig();
-  msg.textContent = '✓ PIN actualizado.'; msg.style.color = 'var(--accent)';
+  msg.textContent = 'Guardando...'; msg.style.color = 'var(--muted)';
+  await saveConfig();
+  msg.textContent = '✓ PIN actualizado y guardado en Sheets.'; msg.style.color = 'var(--accent)';
   document.getElementById('new-pin').value = '';
 }
  
