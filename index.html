@@ -340,7 +340,7 @@ let members    = [];
 let activities = [];
 let records    = JSON.parse(localStorage.getItem('eq_records') || '[]');
 let sheetsUrl  = localStorage.getItem(SHEETS_URL_KEY) || 'https://script.google.com/macros/s/AKfycbyvQicOkdnI1AHtCq1E5fua7VnYDFmzIC-WdUYRQn4nBOZBFJmOsms4k-spnMBxKMCHgQ/exec';
-let adminPin   = localStorage.getItem(PIN_KEY) || '1234';
+let adminPin   = localStorage.getItem(PIN_KEY) || '1996';
 let scanner = null, userScanner = null;
 let pendingMember = null, scanSource = 'user';
 let cachedLocation = {lat:null,lng:null};
@@ -424,24 +424,12 @@ function exitAdmin() {
 }
  
 /* ── PIN ── */
-async function openPinScreen() {
-  document.getElementById('pin-loading').style.display = 'block';
-  document.getElementById('pin-form').style.display = 'none';
+function openPinScreen() {
+  document.getElementById('pin-loading').style.display = 'none';
+  document.getElementById('pin-form').style.display = 'block';
   document.getElementById('pin-input').value = '';
   document.getElementById('pin-error').textContent = '';
   document.getElementById('pin-screen').classList.add('open');
-  if (sheetsUrl) {
-    try {
-      const r = await fetch(sheetsUrl, { method: 'POST', body: JSON.stringify({ action: 'getConfig' }) });
-      const d = await r.json();
-      if (d.status === 'ok' && d.adminPin) {
-        adminPin = d.adminPin;
-        localStorage.setItem(PIN_KEY, adminPin);
-      }
-    } catch(e) {}
-  }
-  document.getElementById('pin-loading').style.display = 'none';
-  document.getElementById('pin-form').style.display = 'block';
   setTimeout(() => document.getElementById('pin-input').focus(), 100);
 }
 function closePinScreen() { document.getElementById('pin-screen').classList.remove('open'); }
@@ -451,14 +439,12 @@ function checkPin() {
   if (val === adminPin) { closePinScreen(); enterAdminMode(); }
   else { document.getElementById('pin-error').textContent = 'PIN incorrecto.'; document.getElementById('pin-input').value = ''; }
 }
-async function savePin() {
+function savePin() {
   const v = document.getElementById('new-pin').value.trim();
   const msg = document.getElementById('pin-msg');
   if (v.length !== 4 || isNaN(v)) { msg.textContent = 'Debe tener 4 dígitos.'; msg.style.color = 'var(--danger)'; return; }
   adminPin = v; localStorage.setItem(PIN_KEY, v);
-  msg.textContent = 'Guardando...'; msg.style.color = 'var(--muted)';
-  await saveConfig();
-  msg.textContent = '✓ PIN actualizado y guardado en Sheets.'; msg.style.color = 'var(--accent)';
+  msg.textContent = '✓ PIN actualizado en este dispositivo.'; msg.style.color = 'var(--accent)';
   document.getElementById('new-pin').value = '';
 }
  
