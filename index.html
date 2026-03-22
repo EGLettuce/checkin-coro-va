@@ -312,12 +312,15 @@
 <div id="pin-screen">
   <div class="pin-box">
     <h2>Acceso administrador</h2>
-    <p>Ingresa el PIN para continuar</p>
-    <input type="password" id="pin-input" maxlength="4" placeholder="• • • •" oninput="clearPinError()" onkeydown="if(event.key==='Enter')checkPin()"/>
-    <p class="pin-error" id="pin-error"></p>
-    <div class="pin-actions">
-      <button class="btn" onclick="closePinScreen()">Cancelar</button>
-      <button class="btn primary" onclick="checkPin()">Entrar</button>
+    <div id="pin-loading" style="padding:16px 0;color:#7A7773;font-size:13px;">Verificando...</div>
+    <div id="pin-form" style="display:none;">
+      <p style="font-size:13px;color:#7A7773;margin-bottom:20px;">Ingresa el PIN para continuar</p>
+      <input type="password" id="pin-input" maxlength="4" placeholder="• • • •" oninput="clearPinError()" onkeydown="if(event.key==='Enter')checkPin()"/>
+      <p class="pin-error" id="pin-error"></p>
+      <div class="pin-actions">
+        <button class="btn" onclick="closePinScreen()">Cancelar</button>
+        <button class="btn primary" onclick="checkPin()">Entrar</button>
+      </div>
     </div>
   </div>
 </div>
@@ -422,6 +425,11 @@ function exitAdmin() {
  
 /* ── PIN ── */
 async function openPinScreen() {
+  document.getElementById('pin-loading').style.display = 'block';
+  document.getElementById('pin-form').style.display = 'none';
+  document.getElementById('pin-input').value = '';
+  document.getElementById('pin-error').textContent = '';
+  document.getElementById('pin-screen').classList.add('open');
   if (sheetsUrl) {
     try {
       const r = await fetch(sheetsUrl, { method: 'POST', body: JSON.stringify({ action: 'getConfig' }) });
@@ -432,9 +440,8 @@ async function openPinScreen() {
       }
     } catch(e) {}
   }
-  document.getElementById('pin-input').value = '';
-  document.getElementById('pin-error').textContent = '';
-  document.getElementById('pin-screen').classList.add('open');
+  document.getElementById('pin-loading').style.display = 'none';
+  document.getElementById('pin-form').style.display = 'block';
   setTimeout(() => document.getElementById('pin-input').focus(), 100);
 }
 function closePinScreen() { document.getElementById('pin-screen').classList.remove('open'); }
